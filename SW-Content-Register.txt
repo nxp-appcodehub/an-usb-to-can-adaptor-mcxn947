@@ -1,0 +1,20 @@
+Release Name: 		   an-usb-to-can-adaptor-mcxn947
+Release Version: 	   1.0
+Outgoing License: 	   LA_OPT_NXP_Software_License v53 December 2023  - Additional Distribution License granted, license in Section 2.3 applies
+License in File: 	   License.txt
+Description: 		   USB to CAN-FD adapter where the USB data retransmit to CAN-bus and vice versa.
+Release location: 	   https://github.com/nxp-appcodehub/mcxn9xxevk_dev_cdc_vcom_to_can_bm
+Origin: 		   NXP (BSD-3-clause)
+			   NXP (Proprietary)
+			   CMSIS (Apache-2.0) - https://github.com/ARM-software/CMSIS_5/releases/tag/5.8.0      
+
+Package Name: 		   MCXUSBtoCAN_GUI
+Package Version: 	   1.0
+Package License: 	   Python License (PSF LICENSE AGREEMENT FOR PYTHON 3.12.1)
+License in File: 	   PSF LICENSE AGREEMENT FOR PYTHON 3.12.1.txt
+Description: 		   Python interface based on tkinter to visualize messages from serial device. With no changes to Python libries.  
+Release location: 	   https://github.com/nxp-appcodehub/mcxn9xxevk_dev_cdc_vcom_to_can_bm/python_gui
+Origin: 		   NXP (BSD-3-clause)
+                           TCL/TK (Tcl/Tk License Terms)
+
+

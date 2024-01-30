@@ -1,0 +1,32 @@
+<data:item xmlns:data="data" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="data ../../xsd/alp.xsd" id="an-usb-to-can-adaptor-mcxn947" type="app_note" format="projectfile" versionSchema="1.0.0" name="USB to CAN-FD Adaptor">
+    <display_title>
+        USB to CAN-FD Adaptor based on MCXN Microcontroller
+    </display_title>
+    <overview>
+        <![CDATA[This application note aims to build a USB
+to CAN-FD adaptor where the USB data retransmit to CAN-bus and vice versa. NXP
+MCXN devices a high-speed USB
+port and CAN-FD controllers. HS USB can reach up to 480 Mbit/s transmission
+speed, which is enough for transmitting CAN-FD frame at highest CAN baud rate on MCXN 8Mbit/s. To make the system easy to use and
+compatible with other devices, we use USB CDC virtual COM port as communication.
+Python Interface is used to visualize the
+CAN-FD information in ASCII format.]]>
+    </overview>
+    <toolchains>
+        <toolchain name="mcux"></toolchain>
+    </toolchains>
+    <families>
+        <family name="mcx"></family>
+    </families>
+    <nxp_compatible_hw>
+        <hw id="MCX-N9XX-EVK"></hw>
+        <hw id="FRDM-MCXN947"></hw>
+    </nxp_compatible_hw>
+    <peripherals>
+        <peripheral name="can"></peripheral>
+        <peripheral name="usb"></peripheral>
+    </peripherals>
+    <categories>
+        <category name="industrial"></category>
+    </categories>
+</data:item>
