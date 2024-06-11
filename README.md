@@ -8,7 +8,7 @@ This application note aims to build a USB to CAN-FD adaptor where the USB data r
 To make the system easy to use and compatible with other devices, we use USB CDC virtual COM port as communication. Python Interface is used to visualize the CAN-FD information in ASCII format.
 
 
-#### Boards: MCX-N9XX-BRK, MCX-N9XX-EVK
+#### Boards: FRDM-MCXN947, MCX-N9XX-EVK
 #### Categories: Industrial
 #### Peripherals: USB, CAN
 #### Toolchains: MCUXpresso IDE
@@ -334,7 +334,7 @@ If you have any questions or feedback on this code please contact NXP support or
 
 #### Project Metadata
 <!----- Boards ----->
-[![Board badge](https://img.shields.io/badge/Board-MCX&ndash;N9XX&ndash;EVK-blue)](https://github.com/search?q=org%3Anxp-appcodehub+MCX-N9XX-EVK+in%3Areadme&type=Repositories) [![Board badge](https://img.shields.io/badge/Board-MCX&ndash;N9XX&ndash;BRK-blue)](https://github.com/search?q=org%3Anxp-appcodehub+MCX-N9XX-BRK+in%3Areadme&type=Repositories)
+[![Board badge](https://img.shields.io/badge/Board-MCX&ndash;N9XX&ndash;EVK-blue)](https://github.com/search?q=org%3Anxp-appcodehub+MCX-N9XX-EVK+in%3Areadme&type=Repositories) [![Board badge](https://img.shields.io/badge/Board-FRDM&ndash;MCXN947-blue)](https://github.com/search?q=org%3Anxp-appcodehub+FRDM-MCXN947+in%3Areadme&type=Repositories)
 
 <!----- Categories ----->
 [![Category badge](https://img.shields.io/badge/Category-INDUSTRIAL-yellowgreen)](https://github.com/search?q=org%3Anxp-appcodehub+industrial+in%3Areadme&type=Repositories)
