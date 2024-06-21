@@ -29,7 +29,7 @@
  ******************************************************************************/
 
 /*!
- * @brief Constant pointer to send functions use by the USBtin
+ * @brief Constant pointer to send functions
  */ 
 const usb_to_can_sendfunc_t usb2can_sendfunc =
 {

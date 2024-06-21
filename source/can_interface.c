@@ -73,6 +73,8 @@ flexcan_frame_t txFrame, rxFrame;
 #endif
 uint8_t swapRxData[64]; /*Create buffer with the maximun expected size*/
 
+uint32_t fdBitrate = 2000000U;
+uint32_t bitrate = 1000000U;
 
 /*******************************************************************************
  * Code
@@ -158,8 +160,7 @@ static FLEXCAN_CALLBACK(flexcan_callback)
 void APPCanStart(uint8_t *param)
 {
 	flexcan_timing_config_t newTimingConfig;
-	uint32_t fdBitrate = 2000000U;
-	uint32_t bitrate = 1000000U;
+
 
 	char fdBitFrame;
 
@@ -214,28 +215,9 @@ void APPCanStart(uint8_t *param)
 			break;
 	}
 
-#if (defined(USE_CANFD) && USE_CANFD)
-    if (FLEXCAN_FDCalculateImprovedTimingValues(EXAMPLE_CAN, bitrate, fdBitrate,
-                                                EXAMPLE_CAN_CLK_FREQ, &newTimingConfig))
-    {
-        /* Update the improved timing configuration*/
-        FLEXCAN_SetFDTimingConfig(EXAMPLE_CAN, &newTimingConfig);
-    }
-    else
-    {
-        LOG_INFO("No found Improved Timing Configuration. Just used default configuration\r\n\r\n");
-    }
-#else
-    if (FLEXCAN_CalculateImprovedTimingValues(EXAMPLE_CAN, bitrate, EXAMPLE_CAN_CLK_FREQ, &newTimingConfig))
-    {
-        /* Update the improved timing configuration*/
-    	FLEXCAN_SetTimingConfig(EXAMPLE_CAN, &newTimingConfig);
-    }
-    else
-    {
-        LOG_INFO("No found Improved Timing Configuration. Just used default configuration\r\n\r\n");
-    }
-#endif
+	FLEXCAN_Deinit(EXAMPLE_CAN);
+	APPCanInit();
+
 
     /* Start receive data */
 #if (defined(USE_CANFD) && USE_CANFD)
@@ -282,6 +264,9 @@ void APPCanInit(void)
      * flexcanConfig.enableDoze             = false;
      */
     FLEXCAN_GetDefaultConfig(&flexcanConfig);
+    flexcanConfig.bitRate                = bitrate;
+    flexcanConfig.bitRateFD              = fdBitrate;
+
 #if defined(EXAMPLE_CAN_CLK_SOURCE)
     flexcanConfig.clkSrc = EXAMPLE_CAN_CLK_SOURCE;
 #endif
