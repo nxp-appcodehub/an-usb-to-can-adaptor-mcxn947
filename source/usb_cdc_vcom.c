@@ -70,6 +70,7 @@ typedef struct _usb_cdc_acm_info
     uint16_t uartState;       /* UART state of the CDC device.                      */
 } usb_cdc_acm_info_t;
 
+uint8_t tx_completed = false;
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -286,6 +287,8 @@ usb_status_t USB_DeviceCdcVcomCallback(class_handle_t handle, uint32_t event, vo
                     /* Schedule buffer for next receive event */
                     error = USB_DeviceCdcAcmRecv(handle, USB_CDC_VCOM_BULK_OUT_ENDPOINT, s_currRecvBuf,
                                                  g_UsbDeviceCdcVcomDicEndpoints[1].maxPacketSize);
+
+                    tx_completed = true;
 #if defined(FSL_FEATURE_USB_KHCI_KEEP_ALIVE_ENABLED) && (FSL_FEATURE_USB_KHCI_KEEP_ALIVE_ENABLED > 0U) && \
     defined(USB_DEVICE_CONFIG_KEEP_ALIVE_MODE) && (USB_DEVICE_CONFIG_KEEP_ALIVE_MODE > 0U) &&             \
     defined(FSL_FEATURE_USB_KHCI_USB_RAM) && (FSL_FEATURE_USB_KHCI_USB_RAM > 0U)
@@ -720,10 +723,12 @@ void APPUSBTinRxCallback(uint8_t *buf, uint32_t len)
 uint32_t APPUSBCdcSend(uint8_t *buf, uint32_t len)
 {
   uint32_t usbstatus;
+  tx_completed = false;
   /* Send buffer */
   usbstatus = (uint32_t)USB_DeviceCdcAcmSend(s_cdcVcom.cdcAcmHandle, 
                                              USB_CDC_VCOM_BULK_IN_ENDPOINT, buf, len);
   
+  while(tx_completed == false);
   return usbstatus;
 }
 

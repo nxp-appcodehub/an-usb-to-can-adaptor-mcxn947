@@ -58,6 +58,7 @@
 flexcan_handle_t flexcanHandle;
 volatile bool txComplete = false;
 volatile bool rxComplete = false;
+volatile bool wakenUp    = false;
 flexcan_mb_transfer_t txXfer; 
 flexcan_mb_transfer_t rxXfer;
 #if (defined(USE_CANFD) && USE_CANFD)
@@ -143,6 +144,10 @@ static FLEXCAN_CALLBACK(flexcan_callback)
                /* Set Complete Flag */
                txComplete = true;
             }
+            break;
+
+        case kStatus_FLEXCAN_WakeUp:
+            wakenUp = true;
             break;
 
         default:
@@ -271,6 +276,10 @@ void APPCanInit(void)
     flexcanConfig.clkSrc = EXAMPLE_CAN_CLK_SOURCE;
 #endif
 
+#if defined(EXAMPLE_CAN_BIT_RATE)
+    flexcanConfig.bitRate = EXAMPLE_CAN_BIT_RATE;
+#endif
+
 /* If special quantum setting is needed, set the timing parameters. */
 #if (defined(SET_CAN_QUANTUM) && SET_CAN_QUANTUM)
     flexcanConfig.timingConfig.phaseSeg1 = PSEG1;
@@ -361,6 +370,7 @@ uint32_t APPCanSend(uint32_t id, uint8_t *buff, uint32_t len)
     txFrame.length = (uint8_t)len;
 #if (defined(USE_CANFD) && USE_CANFD)
     txFrame.brs = 1U;
+    txFrame.edl = 1U;
 #endif
     
 #if(defined(USE_CANFD) && USE_CANFD)

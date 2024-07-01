@@ -341,7 +341,6 @@ void usb_to_can_input(uint8_t ch)
             if(ch == 0x0D || ch == 0x0A)
             {
                 usb2can.state = USB_TO_CAN_IDLE;
-                usb2can.sendfunc->uart_send(usb2can.send_buf, usb2can.send_buf_len);
                 parse_cmd_transmit(usb2can.recv_buf, usb2can.recv_buf_cnt);
             }
             break;
@@ -349,7 +348,6 @@ void usb_to_can_input(uint8_t ch)
             if(ch == 0x0D || ch == 0x0A)
             {
                 usb2can.state = USB_TO_CAN_IDLE;
-                usb2can.sendfunc->uart_send(usb2can.send_buf, usb2can.send_buf_len);
             }
             break;
 

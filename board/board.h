@@ -17,7 +17,7 @@
 #define MCX_N9XX_EVK     (1U)
 #define MCX_N9XX_FRDM    (2U)
 
-#define BOARD_NAME MCX_N9XX_EVK
+#define BOARD_NAME MCX_N9XX_FRDM
 
 
 /*! @brief The UART to use for debug messages. */
