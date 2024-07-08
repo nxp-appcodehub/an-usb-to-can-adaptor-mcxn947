@@ -73,28 +73,52 @@ def serial_reception():
                     dataRx += dataRaw[counter]
                     counter += 1
 
-                canFrame.insert('', 0, text="1", values=(deltaRxtime,"Rx", "FD", canIdRx, messageRxsize, dataRx ))
-                print(dataRaw)
+            else:
+                canIdRx = dataRaw[5] + dataRaw[6] + dataRaw[7] + dataRaw[8] + dataRaw[9] + dataRaw[10] + dataRaw[11] + dataRaw[12]
+                messageRxsize = dataRaw[13]
+                if(messageRxsize == 'A'):
+                    messageRxsize = "10"
+                elif(messageRxsize == 'B'):
+                    messageRxsize = "11"
+                elif(messageRxsize == 'C'):
+                    messageRxsize = "12"
+                elif(messageRxsize == 'D'):
+                    messageRxsize = "13"
+                elif(messageRxsize == 'E'):
+                    messageRxsize = "14"
+                elif(messageRxsize == 'F'):
+                    messageRxsize = "15"
+                else:
+                    messageRxsize = dataRaw[13]
+                counter = 14
+                while (counter <= (bytesToRead)):
+                    dataRx += dataRaw[counter]
+                    counter += 1
+
+            canFrame.insert('', 0, text="1", values=(deltaRxtime,"Rx", "FD", canIdRx, messageRxsize, dataRx ))
+            print(dataRaw)
 
         else:
-            if(dataRaw[2] == 's' or dataRaw[2] == 'S'):
+            if(dataRaw[2] == 's' or dataRaw[2] == 'e'):
                 dataRx = ""
                 if(dataRaw[2] == 's'):
                     canIdRx = dataRaw[3] + dataRaw[4] + dataRaw[5]
                     messageRxsize = dataRaw[6]
                     counter = 7
-                    intMessageSize = (int(messageRxsize)*2) + 7
+                    intMessageSize = (int(messageRxsize)*2) + counter
                     while (counter < (intMessageSize)): 
                         dataRx += dataRaw[counter]
                         counter += 1
                 else:
-                    canIdRx = dataRaw[3] + dataRaw[4] + dataRaw[5] + dataRaw[6] + dataRaw[7] + dataRaw[8] +dataRaw[9]
-                    messageRxsize = dataRaw[10]
-                    counter = 11
-                    while (dataRaw[counter] != '/'): 
+                    canIdRx = dataRaw[3] + dataRaw[4] + dataRaw[5] + dataRaw[6] + dataRaw[7] + dataRaw[8] + dataRaw[9] + dataRaw[10]
+                    messageRxsize = dataRaw[11]
+                    counter = 12
+                    intMessageSize = (int(messageRxsize)*2) + counter
+                    while (counter < (intMessageSize)): 
                         dataRx += dataRaw[counter]
+                        counter += 1
 
-                canFrame.insert('', 0, text="1", values=(deltaRxtime,"Rx", "", canIdRx, messageRxsize, dataRx ))
+                canFrame.insert('', 0, text="1", values=(deltaRxtime,"Rx", "SD", canIdRx, messageRxsize, dataRx ))
                 print(dataRaw)
 
 #################################### Create Interface######################### 
@@ -102,7 +126,7 @@ def serial_reception():
 window = Tk()
  
 # root window title and dimension
-window.title("MCXUSBtoCAN_GUI v1.0")
+window.title("MCXUSBtoCAN_GUI v2.0")
 # Set geometry (widthxheight)
 window.geometry('1200x550')
 #window.option_add('*Font', '5')
@@ -146,6 +170,8 @@ def connect_to_serial():
     global serialComVar
     global sendButton
     global serThread
+    global checkboxExVal
+    global checkboxFdVal
     if(connectButton['text'] == 'Connect'):
         selectedPort = serialPort.get() 
         serialComVar = serial.Serial(selectedPort)
@@ -156,6 +182,8 @@ def connect_to_serial():
         baudrateDropDown.config(bg="dark grey", state="disable")
         fdBaudrateDropDown.config(bg="dark grey", state="disable")
         sendButton.config(bg="gray95", state="normal")  
+        canEx.config(state="disable")
+        canFd.config(state="disable")
 
         #create Thread to listen to serial port
         serThread = threading.Thread(target=serial_reception)
@@ -163,7 +191,17 @@ def connect_to_serial():
 
         print(baudrate.get())
         print(fdBaudrate.get())
-        CanConfig = "I" + "AR" + baudrate.get()+ "FD" + fdBaudrate.get()
+        if(checkboxExVal == True):
+            extendedId = "E" 
+        else:
+            extendedId = "N"
+
+        if(checkboxFdVal == True):
+            canFormat = "FD"
+        else:
+            canFormat = "SD"
+
+        CanConfig = "I" + "AR" + baudrate.get()+ canFormat + fdBaudrate.get() + extendedId
         print(CanConfig)
         serialComVar.write(CanConfig.encode('ASCII'))
     
@@ -177,6 +215,8 @@ def connect_to_serial():
         baudrateDropDown.config(bg="gray95", state="normal")
         fdBaudrateDropDown.config(bg="gray95", state="normal")
         sendButton.config(bg="dark grey", state="disable")
+        canEx.config(state="active")
+        canFd.config(state="active")
         serThread.join()
         
 
@@ -210,7 +250,7 @@ canIdTxt.place(x=10, y=430)
 
 #Label to identify CAN ID
 canIdTxt = Label(window, text="CAN ID", font=("Helvetica", 10))
-canIdTxt.place(x=10, y=460)
+canIdTxt.place(x=6, y=460)
 
 #Entry field for CAN ID
 canId = Entry(window, bd=2, width=12)
@@ -255,21 +295,41 @@ def check_FD_Clicked():
 canFd = Checkbutton(window, bd=2, text="FD", command=check_FD_Clicked)
 canFd.place(x=1115, y=450)
 
+#Check box for Extended activation
+checkboxExVal = False
+
+#Checkbox event#
+def check_EX_Clicked():
+    global checkboxExVal
+    if(checkboxExVal == False):
+        checkboxExVal = True
+        canId.delete(0, END)
+        canId.insert("0", "12345678")
+    else:
+        checkboxExVal = False
+        canId.delete(3, END)
+
+canEx = Checkbutton(window, bd=2, text="Ex", command=check_EX_Clicked)
+canEx.place(x=52, y=460)
+
 #Create Send Button
 messageSize = '8'
 
 def send_message():
     global checkboxFdVal
+    global checkboxExVal
     global initTime
     global serialComVar
     if(checkboxFdVal == True):
         canFdActive = "FD"
+        CanInt = "FD"
     else:
         canFdActive = ""
+        CanInt = "SD"
 
     deltaTime = (datetime.datetime.now() - initTime)
 
-    canFrame.insert('', 0, text="1", values=(deltaTime,"Tx", canFdActive, canId.get(), messageSize, canData.get("1.0", tk.END) ))
+    canFrame.insert('', 0, text="1", values=(deltaTime,"Tx", CanInt, canId.get(), messageSize, canData.get("1.0", tk.END) ))
     
     dlcText = canDlc.cget("text")
 
@@ -288,7 +348,11 @@ def send_message():
     else:
         dlcText = canDlc.cget("text")   
        
-    mergeCanMessage = canFdActive + 's'+ canId.get() + dlcText + canData.get("1.0", tk.END)
+    if(checkboxExVal == False):
+        mergeCanMessage = canFdActive + 's'+ canId.get() + dlcText + canData.get("1.0", tk.END)
+    else:
+        mergeCanMessage = canFdActive + 'e'+ canId.get() + dlcText + canData.get("1.0", tk.END)
+
     toSendMessage = mergeCanMessage.encode('ASCII')
     serialComVar.write(toSendMessage)
     print(toSendMessage)
@@ -302,6 +366,7 @@ sendButton.config(bg="dark grey", state="disable")
 #Message Data update#
 def update_can_message(event):
     global checkboxFdVal
+    global checkboxExVal
     global messageSize
     canDataMessage = canData.get("1.0", tk.END)
     messageSize = (len(canDataMessage) -1)
@@ -309,6 +374,10 @@ def update_can_message(event):
     if((checkboxFdVal == False) & (messageSize > 16)):
         canData.delete("1.16",tk.END)
         messageSize = 16
+
+    if((checkboxFdVal == True) & (messageSize > 128)):
+        canData.delete("1.128",tk.END)
+        messageSize = 128
 
     if(messageSize % 2 == 0):
         if(messageSize <= 16 ):
@@ -331,7 +400,10 @@ def update_can_message(event):
 canData.bind('<KeyRelease>', update_can_message)
 
 def update_can_id(event):
-    canId.delete(3, END)
+    if(checkboxExVal == False):
+        canId.delete(3, END)
+    else:
+        canId.delete(8, END)
 
 canId.bind('<KeyRelease>', update_can_id)
 

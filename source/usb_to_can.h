@@ -48,7 +48,7 @@
 typedef struct
 {
     uint32_t    (*uart_send)(uint8_t *buf, uint32_t len);
-    uint32_t    (*can_send)(uint32_t id, uint8_t *buf, uint32_t len);
+    uint32_t    (*can_send)(uint32_t id, uint8_t format, uint8_t *buf, uint32_t len);
 }usb_to_can_sendfunc_t;
 
 
@@ -104,23 +104,23 @@ void usb_to_can_input(uint8_t ch);
 void usb_to_can_init(const usb_to_can_sendfunc_t *sendfunc);
 
 /*!
- * @brief USB to CAN, Can input.
+ * @brief convert CAN Frame into Serial
  *
  * Process received CAN message and sent using UART
  *
  * @return None.
  */
-void usb_to_can_interfacez(uint32_t id, uint8_t extId, uint8_t *buf,
+void can_to_cdc_interfacez(uint32_t id, uint8_t extId, uint8_t *buf,
                             uint8_t dlc);
 
 /*!
- * @brief USB to CAN, Can FD input.
+ * @brief convert CAN FD Frame into Serial
  *
  * Process received CAN message and sent using UART
  *
  * @return None.
  */
-void usb_to_can_fd_interfacez(uint32_t id, uint8_t extId, uint8_t *buf,
+void can_fd_to_cdc_interfacez(uint32_t id, uint8_t extId, uint8_t *buf,
                             uint8_t dlc, uint32_t lenInBytes);
 
 #endif /*USB_TO_CAN*/

@@ -2,7 +2,7 @@
 [<img src="https://mcuxpresso.nxp.com/static/icon/nxp-logo-color.svg" width="100"/>](https://www.nxp.com)
 
 ## USB to CAN-FD Adaptor based on MCXN947 Microcontroller
-This application note aims to build a USB to CAN-FD adaptor where the USB data retransmit to CAN-bus and vice versa. NXP MCXN devices have a high-speed USB port and CAN-FD controllers. HS USB can reach up to 480 Mbit/s transmission speed, which is enough for transmitting CAN-FD frame at highest CAN baud rate on MCXN 8Mbit/s.
+This application note aims to build a USB to CAN-FD or Classical CAN adaptor where the USB data retransmit to CAN-bus and vice versa. NXP MCXN devices have a high-speed USB port and CAN-FD controllers. HS USB can reach up to 480 Mbit/s transmission speed, which is enough for transmitting CAN-FD frame at highest CAN baud rate on MCXN 8Mbit/s.
 
 
 To make the system easy to use and compatible with other devices, we use USB CDC virtual COM port as communication. Python Interface is used to visualize the CAN-FD information in ASCII format.
@@ -29,7 +29,8 @@ To make the system easy to use and compatible with other devices, we use USB CDC
    7. [Interface description](#step3_7)
 6. [Hands On](#step4) 
    1. [Direct communication](#step4_1)
-   2. [Monitor CAN network](#step4_2)
+   2. [Test Different configurations using Python GUI](#step4_2)
+   3. [Monitor CAN network](#step4_3)
 7. [Support](#step5)
 8. [Release Notes](#step6)
 
@@ -83,7 +84,7 @@ Both examples can be imported from MCXN SDK available in [Welcome | MCUXpresso S
 Get familiar with the above two examples before you continue reading. Those two examples are building blocks for USB-CAN adaptor design.
 
 ## 5.3 Hardware implementation<a name="step3_3"></a>
-The example was created for MCX\_N9XX\_EVK and MCX\_N9XX\_FDRM boards that have the USB phy and the CAN transceiver available to be use without any hardware rework in the boards. The appropriate hardware to use must be selected in board.h file with the next macros:
+The example was created for MCX\_N9XX\_EVK and FRDM-MCXN947 boards that have the USB phy and the CAN transceiver available to be use without any hardware rework in the boards. The appropriate hardware to use must be selected in board.h file with the next macros:
 
 ![](images/BoardSelection.png)
 
@@ -137,6 +138,14 @@ The full MCXN software example is available in this repository.
 Next diagram shows the high level block diagram design for this example. 
 
 ![](images/SoftwareDiagram.png)
+
+This is the flow diagram in the project, starting with the initialization for the modules then once USB is init, it will start a parallel operation waiting for the USB connection then the enumeration. Once the PC recognize the board the COM the code wait until user connect the COM to the GUI or terminal to send a re-initialization sequence for CAN to re-configure selected CAN options, Baudrate, classical CAN or CAN FD, Extended ID. Once the terminal of GUI is connected the code will wait for a CAN Frame or Serial Frame.
+
+<center>
+
+![](images/SoftwareFlowDiagram.png)
+
+</center>
 
 The main functions for the application are located in the next files:
 
@@ -215,15 +224,16 @@ The code for this example is included in the project in the python\_gui folder. 
 ## 5.7 Interface description<a name="step3_7"></a>
 Interface supports the next: 
 
-![](images/PythonInterface.PNG)
+![](images/PythonInterface2.0.PNG)
 
 - Port Selection: Will allow you to select the COM for your USB CDC board.
 - CAN Baudrate: Will select the arbitration phase baud rate.
 - CAN-FD Baudrate: Will select the data phase baud rate.
 - Connect: Must be clicked once the port and baudrates are selected. This will start the serial communication with our device.
 - In the window in the middle we will be able to see the received and transmitted CAN messages
-- FD: This check box is to select between CAN or CAN-FD transmissions but this check box does not control the microcontroller configuration only the serial message to be transmitted through serial. 
+- FD: This check box is to select between Classical CAN or CAN-FD to transmit and receive frames in the selected format. 
 - CAN ID: Select the CAN ID to send a message
+- Ex: This checkbox is used to active the Extended ID support 
 - DLC: Indicate the DLC for the length data. In case that data length is not allowed it will show an error.
 - Data: Message to be transmitted. The length must be even numbers from 2 to 16, 32, 64 or 128 characters accordingly the DLC description. 
 
@@ -231,26 +241,26 @@ Interface supports the next:
 In the next examples the USB to CAN adaptor will be use to communicate with a CAN device or to monitor a communication in a CAN networking.
 
 ## 6.1 Direct communication<a name="step4_1"></a>
-This example requires 2 boards. One board will run the USB to CAN Adaptor code and the other will run mcxn9xxevk\_flexcan\_interrupt\_transfer demo.
+This example requires 2 boards. One board will run the USB to CAN Adaptor code and the other will run frdmmcxn947\_flexcan\_interrupt\_transfer demo.
 
 Prepare the example:
 
-- Connect USB cable between J5 debug USB port to PC Host in both boards.
-- Connect a USB cable between the PC host and the J27 USB device port on the board that will run USB to CAN code.
+- Connect USB cable between J17 debug USB port to PC Host in both boards.
+- Connect a USB cable between the PC host and the J11 USB device port on the board that will run USB to CAN code.
 - Board to board CAN connections need to be as follows:
 
 <Center>
 
-![](images/DirectCommunication.PNG) 
+![](images/DirectCommunicationFRDM.PNG) 
 
 
 
 |**Node A USBtoCAN**|**Node B CAN interrupt demo**|||
 | :-: | :-: | :- | :- |
 |Signal Name|Board Location|Signal Name|Board Location|
-|CANH|J29-1|CANH|J29-1|
-|CANL|J29-2|CANL|J29-2|
-|GND|J29-4|GND|J29-4|
+|CANH|J10-1|CANH|J10-1|
+|CANL|J10-2|CANL|J10-2|
+|GND|J10-4|GND|J10-4|
 
 </Center>
 
@@ -267,33 +277,110 @@ Run the example:
 
 1. Open Python interface either with MCXUSBtoCAN\_GUI.py or MCXUSBtoCAN_GUI.exe
 2. Select the COM that corresponds to USB CDC.
-3. In this example CAN Baud rate will be 1000000 and CAN-FD Baud rate 2000000.
+3. In this example CAN Baud rate will be 500000 and CAN-FD Baud rate 2000000.
 4. Click on Connect button.
 5. Set the FD checkbox. 
-6. On the mcxn9xxevk\_flexcan\_interrupt\_transfer demo select node A as option.
+6. On the frdmmcxn947\_flexcan\_interrupt\_transfer demo select node A as option.
 7. Press any key on the serial terminal to send a CAN message.
-8. Write the value 01 in Data section and click Send button. 
-9. Now you can repeat steps 7 and 8. Just remember that mcxn9xxevk\_flexcan\_interrupt\_transfer demo after sending a CAN message is in a loop waiting to receive a message and after receiving the message will wait until a CAN message is send using the terminal. 
+8. Now on GUI interface write the value 01 in Data section and click Send button. 
+9. Now you can repeat steps 7 and 8. Just remember that frdmmcxn947\_flexcan\_interrupt\_transfer demo after sending a CAN message is in a loop waiting to receive a message and after receiving the message will wait until a CAN message is send using the terminal. 
 
 <Center>
 
-![](images/SerialTerminal.PNG)
+![](images/SerialTerminal2.0.PNG)
 
 **Serial Terminal after running the demo**
 
-![](images/PythonGUIResult1.PNG)
+![](images/PythonGUIResult1_2.0.PNG)
 
 **Python GUI interface after running the demo**
 
 </Center>
 
-## 6.2 Monitor CAN network<a name="step4_2"></a>
+## 6.2 Test Different configurations using Python GUI <a name="step4_2"></a>
+This example requires 2 boards. The two board will run the USB to CAN Adaptor code. Once the code is loaded into the boards there is no need to connect USB cable to MCU Link J17 connector, the board is supply connecting only to USB connector J11. 
+
+Prepare the example:
+
+- Board to board CAN connections need to be as follows:
+
+<Center>
+
+![](images/TestPythonGui2.0.PNG) 
+
+
+
+|**Node A USBtoCAN**|**Node B CAN interrupt demo**|||
+| :-: | :-: | :- | :- |
+|Signal Name|Board Location|Signal Name|Board Location|
+|CANH|J10-1|CANH|J10-1|
+|CANL|J10-2|CANL|J10-2|
+|GND|J10-4|GND|J10-4|
+
+</Center>
+
+- Download USB to CAN adaptor source code that comes alongside this application note after the code is loaded connect USB Cable to USB connector J11.
+
+Run the example:
+
+1. Open two Python interface either with MCXUSBtoCAN\_GUI.py or MCXUSBtoCAN_GUI.exe
+2. Select the COM that corresponds to USB CDC.
+3. Keep all parameters as default and click Connect button.
+4. Modify CAN ID to identify the frames, I will use the COM number just for reference.
+5. In Data section write different messages, we could try also different length.
+6. Click Send button in both interfaces.
+7. The massages will appear as Rx or Tx in the GUI window.
+
+<Center>
+
+![](images/GUITest1.PNG)
+
+</Center>
+
+8. Click on Disconnect button in both.
+9. Set Ex Checkbox in both GUIs and select different Baudrate. Notice that now you can write a 29bit ID the 3 more significant bits will be ignore.  
+10. Click on Connect again.
+11. Change the Data and ID to transmit different frame.
+12. Click Send button. Notice that ID now is Extended ID 29bits.
+
+<Center>
+
+![](images/GUITest2.PNG)
+
+</Center>
+
+13. Click on Disconnect button again to modify parameters. 
+14. Change baudrate and set FD Checkbox. Notice that now the Data could be from 1 - 8, 16, 32 or 64 bytes other length number will be mark as Error.  
+15. Click Connect
+16. Now write any data and if wanted change the CAN ID.   
+17. Click Send button. Notice now window us FD as a Type.
+
+<Center>
+
+![](images/GUITest3.PNG)
+
+</Center>
+
+18. Click on Disconnect.
+19. Finally uncheck Ex Checkbox. Notice that ID is back to 11bits.
+20. Connect again.
+21. Send a Message using CAN FD without the Extended ID.
+
+<Center>
+
+![](images/GUITest4.PNG)
+
+</Center>
+
+
+Note: It important to know that CAN FD is able received Classical CAN commands but if a Classical CAN is choose in the GUI it will not be able to received CAN FD, this is also stablished in CAN protocol. 
+
+## 6.3 Monitor CAN network<a name="step4_3"></a>
 In this example we are going to need a CAN network with 2 or more devices. The MCXN board with the USB to CAN adaptor code will be connected to the network. The goal is to monitor all the traffic on the network. This demonstration will use two NXP boards running the can\_interrupt\_transfer demo in both boards as the CAN network.
 
 Prepare the example:
 
-- Connect USB cable between J5 debug USB port to PC Host in board.
-- Connect a USB cable between the PC host and the J27 USB device port on the board.
+- Connect a USB cable between the PC host and the J11 USB device port on the board.
 - CAN connection to the network as follows:
 
 <Center>
@@ -301,16 +388,13 @@ Prepare the example:
 |**Node A USBtoCAN**||
 | :-: | :- |
 |Signal Name|Board Location|
-|CANH|J29-1|
-|CANL|J29-2|
-|GND|J29-4|
+|CANH|J10-1|
+|CANL|J10-2|
+|GND|J10-4|
 
-![](images/MonitorCANNetwork.PNG)
+![](images/MonitorCANNetwork2.0.PNG)
 
 </Center>
-
-- Download the example code to the board. 
-- Either press the reset button on your board or launch the debugger in your IDE to begin running the demos.
 
 Run the example:
 
@@ -323,7 +407,7 @@ Run the example:
 
 <Center>
 
-![](images/PythonGUIResult2.PNG)
+![](images/PythonGUIResult2_2.0.PNG)
 
 **Python GUI interface after running the demo**
 
@@ -358,4 +442,5 @@ Questions regarding the content/correctness of this example can be entered as Is
 | Version | Description / Update                           | Date                        |
 |:-------:|------------------------------------------------|----------------------------:|
 | 1.0     | Initial release on Application Code Hub        | January 3<sup>rd</sup> 2024 |
+| 2.0     | Support added to Classical CAN and Extended ID | July 8 2024 |
 

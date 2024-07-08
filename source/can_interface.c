@@ -23,7 +23,7 @@
 #define EXAMPLE_FLEXCAN_IRQHandler CAN0_IRQHandler
 #define RX_MESSAGE_BUFFER_NUM      (0)
 #define TX_MESSAGE_BUFFER_NUM      (1)
-#define RX_IDENTIFIER              (0x000)
+#define RX_IDENTIFIER              (0x00000000)
 
 /* Get frequency of flexcan clock */
 #define EXAMPLE_CAN_CLK_FREQ CLOCK_GetFlexcanClkFreq(0U)
@@ -32,7 +32,6 @@
 /* Fix MISRA_C-2012 Rule 17.7. */
 #define LOG_INFO (void)PRINTF
 
-#if (defined(USE_CANFD) && USE_CANFD)
 /*
  *    DWORD_IN_MB    DLC    BYTES_IN_MB             Maximum MBs
  *    2              8      kFLEXCAN_8BperMB        64
@@ -44,12 +43,7 @@
  * and the Message Buffers are limited corresponding to each payload configuration:
  */
 #define DWORD_IN_MB (16)
-#define DLC         (15)
 #define BYTES_IN_MB kFLEXCAN_64BperMB
-#else
-#define DLC (8)
-#endif
-
 
 /*******************************************************************************
  * Variables
@@ -61,21 +55,15 @@ volatile bool rxComplete = false;
 volatile bool wakenUp    = false;
 flexcan_mb_transfer_t txXfer; 
 flexcan_mb_transfer_t rxXfer;
-#if (defined(USE_CANFD) && USE_CANFD)
-flexcan_fd_frame_t txFrame, rxFrame;
-#else
-flexcan_frame_t txFrame, rxFrame;
-#endif
+flexcan_fd_frame_t txFdFrame, rxFdFrame;
+flexcan_frame_t txSdFrame, rxSdFrame;
 
-#if (defined(FSL_FEATURE_FLEXCAN_HAS_EXTENDED_FLAG_REGISTER)) && (FSL_FEATURE_FLEXCAN_HAS_EXTENDED_FLAG_REGISTER > 0)
-    uint64_t flag = 1U;
-#else
-    uint32_t flag = 1U;
-#endif
 uint8_t swapRxData[64]; /*Create buffer with the maximun expected size*/
 
 uint32_t fdBitrate = 2000000U;
 uint32_t bitrate = 1000000U;
+uint8_t canFdActive = true;
+flexcan_frame_format_t extIdFormat = kFLEXCAN_FrameFormatStandard;
 
 /*******************************************************************************
  * Code
@@ -172,10 +160,42 @@ void APPCanStart(uint8_t *param)
 	if(param[9] == '0')
 	{
 		fdBitFrame = param[12];
+
+		if(param[10] == 'F')
+		{
+			canFdActive = true;
+		}else
+		{
+			canFdActive = false;
+		}
+
+		if(param[19] == 'E')
+		{
+			extIdFormat = kFLEXCAN_FrameFormatExtend;
+		}else
+		{
+			extIdFormat = kFLEXCAN_FrameFormatStandard;
+		}
 	}
 	else
 	{
 		fdBitFrame = param[11];
+
+		if(param[9] == 'F')
+		{
+			canFdActive = true;
+		}else
+		{
+			canFdActive = false;
+		}
+
+		if(param[18] == 'E')
+		{
+			extIdFormat = kFLEXCAN_FrameFormatExtend;
+		}else
+		{
+			extIdFormat = kFLEXCAN_FrameFormatStandard;
+		}
 	}
 
 	switch(param[3])
@@ -224,14 +244,20 @@ void APPCanStart(uint8_t *param)
 	APPCanInit();
 
 
-    /* Start receive data */
-#if (defined(USE_CANFD) && USE_CANFD)
-    rxXfer.framefd = &rxFrame;
-    (void)FLEXCAN_TransferFDReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
-#else
-     rxXfer.frame = &rxFrame;
-     (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
-#endif
+    /* Check if CAN FD  Standard CAN is active on GUI */
+	if(canFdActive == true)
+	{
+		/* Start receive data */
+		rxXfer.framefd = &rxFdFrame;
+		(void)FLEXCAN_TransferFDReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+	}
+	else
+	{
+		/* Start receive data */
+		 rxXfer.frame = &rxSdFrame;
+		 (void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+	}
+
      rxComplete = false;
 
 }
@@ -296,35 +322,45 @@ void APPCanInit(void)
 #if (defined(USE_IMPROVED_TIMING_CONFIG) && USE_IMPROVED_TIMING_CONFIG)
     flexcan_timing_config_t timing_config;
     memset(&timing_config, 0, sizeof(flexcan_timing_config_t));
-#if (defined(USE_CANFD) && USE_CANFD)
-    if (FLEXCAN_FDCalculateImprovedTimingValues(EXAMPLE_CAN, flexcanConfig.bitRate, flexcanConfig.bitRateFD,
-                                                EXAMPLE_CAN_CLK_FREQ, &timing_config))
+
+    /* Check if CAN FD  Standard CAN is active on GUI */
+    if(canFdActive == true)
     {
-        /* Update the improved timing configuration*/
-        memcpy(&(flexcanConfig.timingConfig), &timing_config, sizeof(flexcan_timing_config_t));
+
+		if (FLEXCAN_FDCalculateImprovedTimingValues(EXAMPLE_CAN, flexcanConfig.bitRate, flexcanConfig.bitRateFD,
+													EXAMPLE_CAN_CLK_FREQ, &timing_config))
+		{
+			/* Update the improved timing configuration*/
+			memcpy(&(flexcanConfig.timingConfig), &timing_config, sizeof(flexcan_timing_config_t));
+		}
+		else
+		{
+			LOG_INFO("No found Improved Timing Configuration. Just used default configuration\r\n\r\n");
+		}
+
+		FLEXCAN_FDInit(EXAMPLE_CAN, &flexcanConfig, EXAMPLE_CAN_CLK_FREQ, BYTES_IN_MB, true);
+
+
     }
     else
     {
-        LOG_INFO("No found Improved Timing Configuration. Just used default configuration\r\n\r\n");
+
+		if (FLEXCAN_CalculateImprovedTimingValues(EXAMPLE_CAN, flexcanConfig.bitRate, EXAMPLE_CAN_CLK_FREQ, &timing_config))
+		{
+			/* Update the improved timing configuration*/
+			memcpy(&(flexcanConfig.timingConfig), &timing_config, sizeof(flexcan_timing_config_t));
+		}
+		else
+		{
+			LOG_INFO("No found Improved Timing Configuration. Just used default configuration\r\n\r\n");
+		}
+
+		FLEXCAN_Init(EXAMPLE_CAN, &flexcanConfig, EXAMPLE_CAN_CLK_FREQ);
+
     }
-#else
-    if (FLEXCAN_CalculateImprovedTimingValues(EXAMPLE_CAN, flexcanConfig.bitRate, EXAMPLE_CAN_CLK_FREQ, &timing_config))
-    {
-        /* Update the improved timing configuration*/
-        memcpy(&(flexcanConfig.timingConfig), &timing_config, sizeof(flexcan_timing_config_t));
-    }
-    else
-    {
-        LOG_INFO("No found Improved Timing Configuration. Just used default configuration\r\n\r\n");
-    }
-#endif
+
 #endif
 
-#if (defined(USE_CANFD) && USE_CANFD)
-    FLEXCAN_FDInit(EXAMPLE_CAN, &flexcanConfig, EXAMPLE_CAN_CLK_FREQ, BYTES_IN_MB, true);
-#else
-    FLEXCAN_Init(EXAMPLE_CAN, &flexcanConfig, EXAMPLE_CAN_CLK_FREQ);
-#endif
 
     /* Create FlexCAN handle structure and set call back function. */
     FLEXCAN_TransferCreateHandle(EXAMPLE_CAN, &flexcanHandle, flexcan_callback, NULL);
@@ -333,22 +369,34 @@ void APPCanInit(void)
     FLEXCAN_SetRxMbGlobalMask(EXAMPLE_CAN, FLEXCAN_RX_MB_STD_MASK(RX_IDENTIFIER, 0, 0));
            
     /* Setup Rx Message Buffer. */
-    mbConfig.format = kFLEXCAN_FrameFormatStandard;
+    mbConfig.format = extIdFormat;
     mbConfig.type   = kFLEXCAN_FrameTypeData;
-    mbConfig.id     = FLEXCAN_ID_STD(RX_IDENTIFIER);
-#if (defined(USE_CANFD) && USE_CANFD)
-    FLEXCAN_SetFDRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig, true);
-#else
-    FLEXCAN_SetRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig, true);
-#endif
+    /* Check if Extend ID is active on GUI */
+    if(extIdFormat == kFLEXCAN_FrameFormatExtend)
+    {
+        mbConfig.id     = FLEXCAN_ID_EXT(RX_IDENTIFIER);
+    }
+    else
+    {
+        mbConfig.id     = FLEXCAN_ID_STD(RX_IDENTIFIER);
+    }
 
-/* Setup Tx Message Buffer. */
-#if (defined(USE_CANFD) && USE_CANFD)
-    FLEXCAN_SetFDTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
-#else
-    FLEXCAN_SetTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
-#endif
-    
+    /* Check if CAN FD  Standard CAN is active on GUI */
+    if(canFdActive == true)
+    {
+		FLEXCAN_SetFDRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig, true);
+
+		/* Setup Tx Message Buffer. */
+		FLEXCAN_SetFDTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
+    }
+    else
+    {
+		FLEXCAN_SetRxMbConfig(EXAMPLE_CAN, RX_MESSAGE_BUFFER_NUM, &mbConfig, true);
+
+		/* Setup Tx Message Buffer. */
+		FLEXCAN_SetTxMbConfig(EXAMPLE_CAN, TX_MESSAGE_BUFFER_NUM, true);
+    }
+
 }
 
 /*!
@@ -358,55 +406,79 @@ void APPCanInit(void)
  *
  * @return Transmission status.
  */
-uint32_t APPCanSend(uint32_t id, uint8_t *buff, uint32_t len)
+uint32_t APPCanSend(uint32_t id, uint8_t format, uint8_t *buff, uint32_t len)
 {
     uint32_t txStatus;
     uint8_t i;
 
-    /* Prepare Tx Frame for sending. */
-    txFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
-    txFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
-    txFrame.id     = FLEXCAN_ID_STD(id);
-    txFrame.length = (uint8_t)len;
-#if (defined(USE_CANFD) && USE_CANFD)
-    txFrame.brs = 1U;
-    txFrame.edl = 1U;
-#endif
-    
-#if(defined(USE_CANFD) && USE_CANFD)
-    for (i = 0; i < DWORD_IN_MB; i++)
+    /* Check if CAN FD  Standard CAN is active on GUI */
+    if(canFdActive == true)
     {
-      txFrame.dataWord[i] = endianSwap4bytes((uint32_t)(*((uint32_t *)buff + i)));
+        /* Check format and Prepare Tx Frame for sending. */
+        if(format == (uint8_t)kFLEXCAN_FrameFormatExtend)
+        {
+        	txFdFrame.format = (uint8_t)kFLEXCAN_FrameFormatExtend;
+            txFdFrame.id     = FLEXCAN_ID_EXT(id);
+        }else
+        {
+        	txFdFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+            txFdFrame.id     = FLEXCAN_ID_STD(id);
+        }
+        txFdFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+        txFdFrame.length = (uint8_t)len;
+        txFdFrame.brs = 1U;
+        txFdFrame.edl = 1U;
+
+        for (i = 0; i < DWORD_IN_MB; i++)
+        {
+          txFdFrame.dataWord[i] = endianSwap4bytes((uint32_t)(*((uint32_t *)buff + i)));
+        }
+
+        LOG_INFO("Send message from MB%d to MB%d\r\n", TX_MESSAGE_BUFFER_NUM, RX_MESSAGE_BUFFER_NUM);
+
+        for (i = 0; i < DWORD_IN_MB; i++)
+        {
+            LOG_INFO("tx word%d = 0x%x\r\n", i, txFdFrame.dataWord[i]);
+        }
+
+        /* Start frame transmission */
+        txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+        txXfer.framefd = &txFdFrame;
+        txStatus = (uint32_t)FLEXCAN_TransferFDSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
+
     }
-#else
-    /* Copy the message doing byte swap */
-    txFrame.dataWord0 = endianSwap4bytes((uint32_t)(*((uint32_t *)buff)));
-    txFrame.dataWord1 = endianSwap4bytes((uint32_t)(*((uint32_t *)(buff + 4))));
-#endif
-    
-    LOG_INFO("Send message from MB%d to MB%d\r\n", TX_MESSAGE_BUFFER_NUM, RX_MESSAGE_BUFFER_NUM);
-
-
-#if (defined(USE_CANFD) && USE_CANFD)
-    for (i = 0; i < DWORD_IN_MB; i++)
+    else
     {
-        LOG_INFO("tx word%d = 0x%x\r\n", i, txFrame.dataWord[i]);
+        /* Prepare Tx Frame for sending. */
+        if(format == (uint8_t)kFLEXCAN_FrameFormatExtend)
+        {
+        	txSdFrame.format = (uint8_t)kFLEXCAN_FrameFormatExtend;
+            txSdFrame.id     = FLEXCAN_ID_EXT(id);
+        }else
+        {
+        	txSdFrame.format = (uint8_t)kFLEXCAN_FrameFormatStandard;
+            txSdFrame.id     = FLEXCAN_ID_STD(id);
+        }
+        txSdFrame.type   = (uint8_t)kFLEXCAN_FrameTypeData;
+        txSdFrame.length = (uint8_t)len;
+
+        /* Copy the message doing byte swap */
+        txSdFrame.dataWord0 = endianSwap4bytes((uint32_t)(*((uint32_t *)buff)));
+        txSdFrame.dataWord1 = endianSwap4bytes((uint32_t)(*((uint32_t *)(buff + 4))));
+
+        LOG_INFO("Send message from MB%d to MB%d\r\n", TX_MESSAGE_BUFFER_NUM, RX_MESSAGE_BUFFER_NUM);
+
+        LOG_INFO("tx ID = 0x%x\r\n", id);
+        LOG_INFO("tx word0 = 0x%x\r\n", txSdFrame.dataWord0);
+        LOG_INFO("tx word1 = 0x%x\r\n", txSdFrame.dataWord1);
+
+        /* Start frame transmission */
+        txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
+        txXfer.frame = &txSdFrame;
+        txStatus = (uint32_t)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
+
     }
-#else
-    LOG_INFO("tx ID = 0x%x\r\n", id);
-    LOG_INFO("tx word0 = 0x%x\r\n", txFrame.dataWord0);
-    LOG_INFO("tx word1 = 0x%x\r\n", txFrame.dataWord1);
-#endif
-    /* Start frame transmission */
-    txXfer.mbIdx = (uint8_t)TX_MESSAGE_BUFFER_NUM;
-#if (defined(USE_CANFD) && USE_CANFD)
-    txXfer.framefd = &txFrame;
-    txStatus = (uint32_t)FLEXCAN_TransferFDSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
-#else
-    txXfer.frame = &txFrame;
-    txStatus = (uint32_t)FLEXCAN_TransferSendNonBlocking(EXAMPLE_CAN, &flexcanHandle, &txXfer);
-#endif
-   
+
     return txStatus;
 }
 
@@ -454,22 +526,46 @@ static void endianSwapBuffer(uint8_t * dBuff, uint8_t * sBuff, uint8_t length)
 }
 
 /*!
- * @brief FlexCAN  USBTin Call Back function.
+ * @brief FlexCAN Callback function to process CAN Frame
  *
- * Callback USBTin function for the CAN interrupts.
+ * FlexCAN Callback function to process CAN Frame
  *
  * @return None.
  */
-void APPUSBTinCanRxCallback(uint32_t id, uint8_t extId, uint8_t *buf, 
+void APPCANtoCDCRxCallback(uint32_t id, uint8_t extId, uint8_t *buf,
                             uint8_t dlc, uint32_t lenInBytes)
 {
-#if (defined(USE_CANFD) && USE_CANFD)
-	usb_to_can_fd_interfacez(id, extId, buf, dlc, lenInBytes);
-#else
-  usb_to_can_interfacez(id, extId, buf, dlc);
-#endif
-  
-  
+
+	/* Check if CAN FD  Standard CAN is active on GUI */
+    if(canFdActive == true && rxFdFrame.brs == 1)
+    {
+    	/* Check if Extend ID is active on GUI */
+    	if(extId == true)
+    	{
+    		/* Convert USB serial frame into CAN FD frame */
+    		can_fd_to_cdc_interfacez(id, extId, buf, dlc, lenInBytes);
+    	}
+    	else
+    	{
+    		/* Convert USB serial frame into CAN FD frame */
+    		can_fd_to_cdc_interfacez((id>>18), extId, buf, dlc, lenInBytes);
+    	}
+    }
+    else
+    {
+    	/* Check if Extend ID is active on GUI */
+    	if(extId == true)
+    	{
+    		/* Convert USB serial frame into CAN frame */
+    		can_to_cdc_interfacez(id, extId, buf, dlc);
+    	}
+    	else
+    	{
+    		/* Convert USB serial frame into CAN frame */
+    		can_to_cdc_interfacez(id>>18, extId, buf, dlc);
+    	}
+    }
+
 }
 
 void AppCANRequestRxTask(void)
@@ -479,35 +575,51 @@ void AppCANRequestRxTask(void)
 	{
 	    rxComplete = false;
 
-	    /* Since the adapter does not have an active CAN ID any transmission will also be detected as a reception
-	     * the next condition will help to filter messages sent by it self and do not reflect it on the GUI. */
-	    if(txFrame.id != rxFrame.id)
+	    /* Check if CAN FD  Standard CAN is active on GUI */
+	    if(canFdActive == true)
 	    {
+		    /* Since the adapter does not have an active CAN ID any transmission will also be detected as a reception
+		     * the next condition will help to filter messages sent by it self and do not reflect it on the GUI. */
+		    if(txFdFrame.id != rxFdFrame.id)
+		    {
 
-			PRINTF("Reception complete!\r\n\r\n");
-#if (defined(USE_CANFD) && USE_CANFD)
-			/* Copy the received message doing a 8byte swap to fix endiness */
-			endianSwapBuffer((uint8_t *)swapRxData, (uint8_t *)&(rxFrame.dataWord[0]), CANFD_DLC_TO_BYTE(rxFrame.length));
-#else
-			/* Copy the received message doing a 8byte swap to fix endiness */
-			endianSwapBuffer((uint8_t *)swapRxData, (uint8_t *)&(rxFrame.dataWord0), rxFrame.length);
-#endif
+				PRINTF("Reception complete!\r\n\r\n");
+				/* Copy the received message doing a 8byte swap to fix endiness */
+				endianSwapBuffer((uint8_t *)swapRxData, (uint8_t *)&(rxFdFrame.dataWord[0]), CANFD_DLC_TO_BYTE(rxFdFrame.length));
 
-			/* Call USBTin function to process the message  */
-			APPUSBTinCanRxCallback((rxFrame.id >> CAN_ID_STD_SHIFT), rxFrame.format, (uint8_t *)swapRxData, rxFrame.length, CANFD_DLC_TO_BYTE(rxFrame.length));
+				/* Call USBTin function to process the message  */
+				APPCANtoCDCRxCallback(rxFdFrame.id, rxFdFrame.format, (uint8_t *)swapRxData, rxFdFrame.length, CANFD_DLC_TO_BYTE(rxFdFrame.length));
+		    }
+
+			/* Start receive data through Rx Message Buffer. */
+			rxXfer.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
+			rxXfer.framefd = &rxFdFrame;
+			(void)FLEXCAN_TransferFDReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+
+			txFdFrame.id = 0x000;
 	    }
+	    else
+	    {
+		    /* Since the adapter does not have an active CAN ID any transmission will also be detected as a reception
+		     * the next condition will help to filter messages sent by it self and do not reflect it on the GUI. */
+		    if(txSdFrame.id != rxSdFrame.id)
+		    {
 
-		/* Start receive data through Rx Message Buffer. */
-		rxXfer.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
-#if (defined(USE_CANFD) && USE_CANFD)
-		rxXfer.framefd = &rxFrame;
-		(void)FLEXCAN_TransferFDReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
-#else
-		rxXfer.frame = &rxFrame;
-		(void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
-#endif
+				PRINTF("Reception complete!\r\n\r\n");
+				/* Copy the received message doing a 8byte swap to fix endiness */
+				endianSwapBuffer((uint8_t *)swapRxData, (uint8_t *)&(rxSdFrame.dataWord0), rxSdFrame.length);
 
-		txFrame.id = 0x000;
+				/* Call  function to process the message  */
+				APPCANtoCDCRxCallback(rxSdFrame.id, rxSdFrame.format, (uint8_t *)swapRxData, rxSdFrame.length, CANFD_DLC_TO_BYTE(rxSdFrame.length));
+		    }
+
+			/* Start receive data through Rx Message Buffer. */
+			rxXfer.mbIdx = (uint8_t)RX_MESSAGE_BUFFER_NUM;
+			rxXfer.frame = &rxSdFrame;
+			(void)FLEXCAN_TransferReceiveNonBlocking(EXAMPLE_CAN, &flexcanHandle, &rxXfer);
+
+			txSdFrame.id = 0x000;
+	    }
 	}
 }
 

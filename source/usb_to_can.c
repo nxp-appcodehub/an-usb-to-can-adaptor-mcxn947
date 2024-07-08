@@ -8,6 +8,7 @@
  * Includes
  ******************************************************************************/
 #include <stdint.h>
+#include <stdbool.h>
 #include "usb_to_can.h"
 #include "stdio.h"
 #include "can_interface.h"
@@ -91,14 +92,14 @@ unsigned char parse_cmd_transmit(uint8_t *line, uint8_t len)
     unsigned long temp;
     unsigned char idlen;
 
-    canmsg.flags.rtr = ((line[0] == 'r') || (line[0] == 'R'));
+ //   canmsg.flags.rtr = ((line[0] == 'r') || (line[0] == 'R'));
 
     /* upper case -> extended identifier */
-    if (line[0] < 'Z') {
-        canmsg.flags.extended = 1;
+    if ((line[0] == 'e') || (line[0] == 'E')) {
+        canmsg.flags.extended = true;
         idlen = 8;
     } else {
-        canmsg.flags.extended = 0;
+        canmsg.flags.extended = false;
         idlen = 3;
     }
 
@@ -117,7 +118,7 @@ unsigned char parse_cmd_transmit(uint8_t *line, uint8_t len)
         }
     }
 
-    usb2can.sendfunc->can_send(canmsg.id, canmsg.data, canmsg.dlc);
+    usb2can.sendfunc->can_send(canmsg.id, canmsg.flags.extended, canmsg.data, canmsg.dlc);
 
     return 1;
 }
@@ -140,7 +141,7 @@ char canmsg_to_ascii_getnextchar(canmsg_t * canmsg, unsigned char * step) {
 
             if (canmsg->flags.extended) {
                 newstep = RX_STEP_ID_EXT;
-                ch = 'S';
+                ch = 'e';
             } else {
                 newstep = RX_STEP_ID_STD;
                 ch = 's';
@@ -240,7 +241,7 @@ char canfdmsg_to_ascii_getnextchar(canfdmsg_t * canfdmsg, unsigned char * step) 
             /* type */
             if (canfdmsg->flags.extended) {
                 newstep = FD_RX_STEP_ID_EXT;
-                ch = 'S';
+                ch = 'e';
             } else {
                 newstep = FD_RX_STEP_ID_STD;
                 ch = 's';
@@ -328,13 +329,19 @@ void usb_to_can_input(uint8_t ch)
             usb2can.recv_buf_cnt = 0;
             if(ch == 's' || ch == 'S' )
             {
-                    usb2can.state = USB_TO_CAN_DATA;
-                    usb2can.recv_buf[usb2can.recv_buf_cnt++] = ch;
-                    usb2can.send_buf_len = 2;
-                    usb2can.send_buf[0] = 'z';
-                    usb2can.send_buf[1] = 0x0D;
-                    break;
-            }
+                usb2can.state = USB_TO_CAN_DATA;
+                usb2can.recv_buf[usb2can.recv_buf_cnt++] = ch;
+                usb2can.send_buf_len = 2;
+                usb2can.send_buf[0] = 'z';
+                usb2can.send_buf[1] = 0x0D;
+            }else if(ch == 'e' || ch == 'E' )
+			{
+                usb2can.state = USB_TO_CAN_DATA;
+                usb2can.recv_buf[usb2can.recv_buf_cnt++] = ch;
+                usb2can.send_buf_len = 2;
+                usb2can.send_buf[0] = 'Z';
+                usb2can.send_buf[1] = 0x0D;
+			}
             break;
         case USB_TO_CAN_DATA:
             usb2can.recv_buf[usb2can.recv_buf_cnt++] = ch;
@@ -358,13 +365,13 @@ void usb_to_can_input(uint8_t ch)
 }
 
 /*!
- * @brief Initialize USB to CAN Interfaces.
+ * @brief convert CAN FD Frame into Serial
  *
- * Initialize USB to CAN with send functions..
+ * convert CAN FD Frame into Serial
  *
  * @return None.
  */
-void usb_to_can_interfacez(uint32_t id, uint8_t extId, uint8_t *buf, uint8_t dlc)
+void can_to_cdc_interfacez(uint32_t id, uint8_t extId, uint8_t *buf, uint8_t dlc)
 {
     int i, cdc_len;
     uint8_t rxstep = 0;
@@ -393,13 +400,13 @@ void usb_to_can_interfacez(uint32_t id, uint8_t extId, uint8_t *buf, uint8_t dlc
 }
 
 /*!
- * @brief USB to CAN, Can FD input.
+ * @brief convert CAN FD Frame into Serial
  *
  * Process received CAN message and sent using UART
  *
  * @return None.
  */
-void usb_to_can_fd_interfacez(uint32_t id, uint8_t extId, uint8_t *buf,
+void can_fd_to_cdc_interfacez(uint32_t id, uint8_t extId, uint8_t *buf,
                             uint8_t dlc, uint32_t lenInBytes)
 {
     int i, cdc_len;

@@ -42,16 +42,16 @@ void APPCanInit(void);
  *
  * @return Transmision status.
  */
-uint32_t APPCanSend(uint32_t id, uint8_t *buff, uint32_t len);
+uint32_t APPCanSend(uint32_t id, uint8_t format, uint8_t *buff, uint32_t len);
 
 /*!
- * @brief FlexCAN  USBTin Call Back function.
+ * @brief FlexCAN Callback function to process CAN Frame
  *
- * Callback USBTin function for the CAN interrupts.
+ * FlexCAN Callback function to process CAN Frame
  *
  * @return None.
  */
-void APPUSBTinCanRxCallback(uint32_t id, uint8_t extId, uint8_t *buf, 
+void APPCANtoCDCRxCallback(uint32_t id, uint8_t extId, uint8_t *buf,
                             uint8_t dlc, uint32_t lenInBytes);
 
 /*!
